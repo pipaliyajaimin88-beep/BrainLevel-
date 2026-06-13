@@ -1,35 +1,38 @@
 workflows:
   android-workflow:
-    name: BrainLevel Master Build
+    name: BrainLevel Last Chance Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: 20
       java: 17
     scripts:
-      - name: Master Setup
+      - name: Diagnostic Setup
         script: |
-          # 1. DELETE EVERYTHING to start 100% fresh
+          echo "--- SHOWING ALL FILES ---"
+          ls -R
+          
+          echo "--- CLEANING UP ---"
           rm -rf android www node_modules package-lock.json package.json capacitor.config.json
           
-          # 2. CREATE the essential configuration
+          echo "--- CREATING CONFIG ---"
           echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
           
-          # 3. INSTALL the core tools
+          echo "--- INSTALLING TOOLS ---"
           npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
           
-          # 4. SEARCH AND RESCUE: Find your files and move them to 'www'
+          echo "--- MOVING GAME FILES ---"
           mkdir -p www
-          find . -maxdepth 3 -name "index.html" -exec cp {} www/index.html \;
-          find . -maxdepth 3 -name "styles.css" -exec cp {} www/styles.css \;
-          find . -maxdepth 3 -name "game-logic.js" -exec cp {} www/game-logic.js \;
-          find . -maxdepth 3 -name "levels.json" -exec cp {} www/levels.json \;
+          find . -maxdepth 4 -name "index.html" -exec cp {} www/index.html \;
+          find . -maxdepth 4 -name "styles.css" -exec cp {} www/styles.css \;
+          find . -maxdepth 4 -name "game-logic.js" -exec cp {} www/game-logic.js \;
+          find . -maxdepth 4 -name "levels.json" -exec cp {} www/levels.json \;
           
-          # 5. REBUILD the Android structure from zero
+          echo "--- BUILDING ANDROID ---"
           npx cap add android
           npx cap sync android
-      - name: Final APK Build
+      - name: Final Build
         script: |
           cd android
           chmod +x gradlew
