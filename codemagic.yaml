@@ -1,42 +1,29 @@
 workflows:
   android-workflow:
-    name: BrainLevel Invincible Build
+    name: BrainLevel White Screen Fix
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: 20
       java: 17
     scripts:
-      - name: Invincible Setup
+      - name: Prepare Web Assets
         script: |
-          echo "--- 1. CLEANING AND CONFIG ---"
-          rm -rf www node_modules package-lock.json package.json capacitor.config.json
-          echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
-          echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
-          
-          echo "--- 2. INSTALLING TOOLS ---"
-          npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
-          
-          echo "--- 3. FINDING YOUR GAME ---"
+          # 1. Create the 'www' folder
           mkdir -p www
-          # Aggressively find and copy your files
-          find . -name "index.html" -not -path "./www/*" -exec cp {} www/index.html \;
-          find . -name "styles.css" -not -path "./www/*" -exec cp {} www/styles.css \;
-          find . -name "game-logic.js" -not -path "./www/*" -exec cp {} www/game-logic.js \;
-          find . -name "levels.json" -not -path "./www/*" -exec cp {} www/levels.json \;
-          
-          # Safety check: If index.html is still missing, create a simple one
-          if [ ! -f www/index.html ]; then
-            echo "<html><body><h1>Game Files Not Found</h1><p>Please check your GitHub folders.</p></body></html>" > www/index.html
+          # 2. Copy all your game files into 'www'
+          cp index.html styles.css game-logic.js levels.json manifest.json www/
+          # 3. Create a fresh package.json if missing
+          if [ ! -f package.json ]; then
+            echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           fi
-          
-          echo "--- 4. ANDROID SYNC ---"
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
-          npx cap sync android
-      - name: Final Build
+          # 4. Install Capacitor tools
+          npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
+      - name: Sync and Build
         script: |
+          # 5. Tell Capacitor to use the 'www' files
+          npx cap sync android
+          # 6. Build the final APK
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
