@@ -1,30 +1,35 @@
 workflows:
   android-workflow:
-    name: BrainLevel Final Build
+    name: BrainLevel Ultimate Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: latest
       java: 17
     scripts:
-      - name: Fix Project Structure
+      - name: Ultimate Environment Setup
         script: |
-          # Create missing config files automatically
-          if [ ! -f package.json ]; then
-            echo '{"name": "brainlevel", "version": "1.0.0", "dependencies": {"@capacitor/android": "^6.0.0", "@capacitor/cli": "^6.0.0", "@capacitor/core": "^6.0.0"}}' > package.json
-          fi
-          if [ ! -f capacitor.config.json ]; then
-            echo '{"appId": "com.brainlevel.game", "appName": "BrainLevel", "webDir": "www"}' > capacitor.config.json
-          fi
-          # Setup web assets
+          # 1. Clean up everything to prevent old errors
+          rm -rf node_modules android www package-lock.json package.json capacitor.config.json
+          
+          # 2. Create fresh configuration files
+          echo '{"name":"brainlevel","version":"1.0.0","dependencies":{"@capacitor/android":"^6.0.0","@capacitor/cli":"^6.0.0","@capacitor/core":"^6.0.0"}}' > package.json
+          echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
+          
+          # 3. Install fresh tools
+          npm install
+          
+          # 4. Organize your game files
           mkdir -p www
           cp index.html styles.css game-logic.js levels.json manifest.json www/ || true
-          # Install and Sync
-          npm install
-          npx cap sync android || (npx cap add android && npx cap sync android)
-      - name: Build APK
+          
+          # 5. Build the Android structure from scratch
+          npx cap add android
+          npx cap sync android
+      - name: Final APK Build
         script: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleDebug
     artifacts:
       - android/app/build/outputs/apk/**/*.apk
