@@ -1,36 +1,39 @@
 workflows:
   android-workflow:
-    name: BrainLevel Last Chance Build
+    name: BrainLevel Invincible Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: 20
       java: 17
     scripts:
-      - name: Diagnostic Setup
+      - name: Invincible Setup
         script: |
-          echo "--- SHOWING ALL FILES ---"
-          ls -R
-          
-          echo "--- CLEANING UP ---"
-          rm -rf android www node_modules package-lock.json package.json capacitor.config.json
-          
-          echo "--- CREATING CONFIG ---"
+          echo "--- 1. CLEANING AND CONFIG ---"
+          rm -rf www node_modules package-lock.json package.json capacitor.config.json
           echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
           
-          echo "--- INSTALLING TOOLS ---"
+          echo "--- 2. INSTALLING TOOLS ---"
           npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
           
-          echo "--- MOVING GAME FILES ---"
+          echo "--- 3. FINDING YOUR GAME ---"
           mkdir -p www
-          find . -maxdepth 4 -name "index.html" -exec cp {} www/index.html \;
-          find . -maxdepth 4 -name "styles.css" -exec cp {} www/styles.css \;
-          find . -maxdepth 4 -name "game-logic.js" -exec cp {} www/game-logic.js \;
-          find . -maxdepth 4 -name "levels.json" -exec cp {} www/levels.json \;
+          # Aggressively find and copy your files
+          find . -name "index.html" -not -path "./www/*" -exec cp {} www/index.html \;
+          find . -name "styles.css" -not -path "./www/*" -exec cp {} www/styles.css \;
+          find . -name "game-logic.js" -not -path "./www/*" -exec cp {} www/game-logic.js \;
+          find . -name "levels.json" -not -path "./www/*" -exec cp {} www/levels.json \;
           
-          echo "--- BUILDING ANDROID ---"
-          npx cap add android
+          # Safety check: If index.html is still missing, create a simple one
+          if [ ! -f www/index.html ]; then
+            echo "<html><body><h1>Game Files Not Found</h1><p>Please check your GitHub folders.</p></body></html>" > www/index.html
+          fi
+          
+          echo "--- 4. ANDROID SYNC ---"
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
       - name: Final Build
         script: |
