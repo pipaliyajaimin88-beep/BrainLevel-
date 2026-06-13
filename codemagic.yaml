@@ -1,30 +1,30 @@
 workflows:
   android-workflow:
-    name: BrainLevel Ultimate Build
+    name: BrainLevel Safe Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: latest
       java: 17
     scripts:
-      - name: Ultimate Environment Setup
+      - name: Safe Environment Setup
         script: |
-          # 1. Clean up everything to prevent old errors
-          rm -rf node_modules android www package-lock.json package.json capacitor.config.json
-          
-          # 2. Create fresh configuration files
-          echo '{"name":"brainlevel","version":"1.0.0","dependencies":{"@capacitor/android":"^6.0.0","@capacitor/cli":"^6.0.0","@capacitor/core":"^6.0.0"}}' > package.json
+          # 1. Create essential files
+          echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
           
-          # 3. Install fresh tools
-          npm install
+          # 2. Install only what is needed
+          npm install @capacitor/cli @capacitor/core @capacitor/android
           
-          # 4. Organize your game files
+          # 3. Setup the game folder
           mkdir -p www
-          cp index.html styles.css game-logic.js levels.json manifest.json www/ || true
+          cp index.html www/index.html || echo "index.html missing"
+          cp styles.css www/styles.css || echo "styles.css missing"
+          cp game-logic.js www/game-logic.js || echo "game-logic.js missing"
+          cp levels.json www/levels.json || echo "levels.json missing"
           
-          # 5. Build the Android structure from scratch
-          npx cap add android
+          # 4. Initialize Android
+          npx cap add android || echo "Android already exists"
           npx cap sync android
       - name: Final APK Build
         script: |
