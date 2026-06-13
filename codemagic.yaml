@@ -1,36 +1,34 @@
 workflows:
   android-workflow:
-    name: BrainLevel Smart Build
+    name: BrainLevel Final Fix Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
-      node: latest
+      node: 20
       java: 17
     scripts:
-      - name: Smart Environment Setup
+      - name: Setup Environment
         script: |
-          # 1. Create fresh configuration
-          echo '{"name":"brainlevel","version":"1.0.0","dependencies":{"@capacitor/android":"latest","@capacitor/cli":"latest","@capacitor/core":"latest"}}' > package.json
+          # 1. Install stable Capacitor version
+          npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
+          
+          # 2. Organize files
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
-          
-          # 2. Install tools
-          npm install
-          
-          # 3. Smart Find: Find files anywhere and move to 'www'
           mkdir -p www
           find . -name "index.html" -exec cp {} www/index.html \;
           find . -name "styles.css" -exec cp {} www/styles.css \;
           find . -name "game-logic.js" -exec cp {} www/game-logic.js \;
           find . -name "levels.json" -exec cp {} www/levels.json \;
           
-          # 4. Setup Android (Delete old one if it exists to be safe)
+          # 3. Build Android structure
           rm -rf android
           npx cap add android
           npx cap sync android
       - name: Final APK Build
         script: |
           cd android
+          # Give permission and build
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew clean assembleDebug
     artifacts:
       - android/app/build/outputs/apk/**/*.apk
