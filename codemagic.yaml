@@ -1,20 +1,27 @@
 workflows:
   android-workflow:
-    name: BrainLevel Android Build
+    name: BrainLevel Final Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: latest
       java: 17
     scripts:
-      - name: Setup Folders and Install
+      - name: Fix Project Structure
         script: |
-          npm install
+          # Create missing config files automatically
+          if [ ! -f package.json ]; then
+            echo '{"name": "brainlevel", "version": "1.0.0", "dependencies": {"@capacitor/android": "^6.0.0", "@capacitor/cli": "^6.0.0", "@capacitor/core": "^6.0.0"}}' > package.json
+          fi
+          if [ ! -f capacitor.config.json ]; then
+            echo '{"appId": "com.brainlevel.game", "appName": "BrainLevel", "webDir": "www"}' > capacitor.config.json
+          fi
+          # Setup web assets
           mkdir -p www
           cp index.html styles.css game-logic.js levels.json manifest.json www/ || true
-      - name: Sync Capacitor
-        script: |
-          npx cap sync android
+          # Install and Sync
+          npm install
+          npx cap sync android || (npx cap add android && npx cap sync android)
       - name: Build APK
         script: |
           cd android
