@@ -1,8 +1,8 @@
-// BrainLevel - UNBREAKABLE VERSION
+// BrainLevel - CLEAN START VERSION
 // game-logic.js
 
 // ========================
-// EMBEDDED LEVELS (Fixes loading errors)
+// EMBEDDED LEVELS
 // ========================
 const levelsData = {
   "worlds": [
@@ -25,49 +25,48 @@ const levelsData = {
 // ========================
 const GameState = {
   currentLevel: 1, currentWorld: 1, score: 0, moves: 15, time: 60, target: 20,
-  tilesCleared: 0, hintsLeft: 3, undosLeft: 3,
-  coins: parseInt(localStorage.getItem('bl_coins') || '0'),
+  tilesCleared: 0, coins: parseInt(localStorage.getItem('bl_coins') || '0'),
   completedLevels: JSON.parse(localStorage.getItem('bl_completed') || '{}'),
   levelStars: JSON.parse(localStorage.getItem('bl_stars') || '{}'),
-  grid: [], selectedTile: null, previousGrid: null, timer: null, isAnimating: false, isPaused: false
+  grid: [], selectedTile: null, timer: null, isAnimating: false, isPaused: false
 };
 
 // ========================
-// CORE FUNCTIONS
+// SCREEN CONTROLLER (Strong Fix)
 // ========================
-function saveProgress() {
-  localStorage.setItem('bl_coins', GameState.coins);
-  localStorage.setItem('bl_completed', JSON.stringify(GameState.completedLevels));
-  localStorage.setItem('bl_stars', JSON.stringify(GameState.levelStars));
-}
-
-function loadProgress() {
-  GameState.coins = parseInt(localStorage.getItem('bl_coins') || '0');
-  GameState.completedLevels = JSON.parse(localStorage.getItem('bl_completed') || '{}');
-  GameState.levelStars = JSON.parse(localStorage.getItem('bl_stars') || '{}');
-}
-
 function showScreen(screenId) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  console.log("Showing screen:", screenId);
+  // Hide ALL screens first
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+    s.style.pointerEvents = 'none'; // Disable touching while hidden
+  });
+  
+  // Show the target screen
   const target = document.getElementById(screenId);
-  if (target) target.classList.add('active');
-  else console.error("Screen not found:", screenId);
+  if (target) {
+    target.classList.add('active');
+    target.style.display = 'flex'; // Or 'block' depending on your CSS
+    target.style.pointerEvents = 'auto'; // Enable touching
+  }
 }
 
 // ========================
 // INITIALIZATION
 // ========================
 function initSplash() {
+  showScreen('splash'); // Force splash first
   const fill = document.getElementById('splash-loader-fill');
   let progress = 0;
   const interval = setInterval(() => {
-    progress += 5;
+    progress += 10;
     if (fill) fill.style.width = progress + '%';
     if (progress >= 100) {
       clearInterval(interval);
-      setTimeout(() => showScreen('home'), 300);
+      setTimeout(() => showScreen('home'), 500);
     }
-  }, 30);
+  }, 50);
 }
 
 function startLevel(worldIdx, levelIdx) {
@@ -90,7 +89,8 @@ function initGameplay() {
   updateHUD();
   renderGrid();
   startTimer();
-  document.getElementById('gp-level-name').textContent = `Level ${GameState.currentLevel}`;
+  const nameEl = document.getElementById('gp-level-name');
+  if (nameEl) nameEl.textContent = `Level ${GameState.currentLevel}`;
 }
 
 function updateHUD() {
@@ -109,12 +109,16 @@ function renderGrid() {
     for (let c = 0; c < 4; c++) {
       const val = GameState.grid[r][c];
       const tile = document.createElement('div');
-      tile.className = `tile tile-${val === 'L' ? 'locked' : val === 'B' ? 'bomb' : val === 'R' ? 'rainbow' : val}`;
-      if (val === 'B') tile.textContent = '💣';
-      if (val === 'L') tile.textContent = '🔒';
-      if (val === 'R') tile.textContent = '🌈';
-      if (GameState.selectedTile && GameState.selectedTile.row === r && GameState.selectedTile.col === c) tile.classList.add('selected');
-      tile.onclick = () => handleTileClick(r, c);
+      tile.className = 'tile';
+      if (val === 'L') { tile.classList.add('tile-locked'); tile.textContent = '🔒'; }
+      else if (val === 'B') { tile.classList.add('tile-bomb'); tile.textContent = '💣'; }
+      else if (val === 'R') { tile.classList.add('tile-rainbow'); tile.textContent = '🌈'; }
+      else if (val !== 0) { tile.classList.add(`tile-${val}`); }
+      
+      if (GameState.selectedTile && GameState.selectedTile.row === r && GameState.selectedTile.col === c) {
+        tile.classList.add('selected');
+      }
+      tile.onclick = (e) => { e.preventDefault(); handleTileClick(r, c); };
       grid.appendChild(tile);
     }
   }
@@ -123,13 +127,13 @@ function renderGrid() {
 function handleTileClick(r, c) {
   if (GameState.isAnimating || GameState.isPaused || GameState.moves <= 0) return;
   if (!GameState.selectedTile) {
-    GameState.selectedTile = {r, c};
+    GameState.selectedTile = {row: r, col: c};
     renderGrid();
   } else {
     const s = GameState.selectedTile;
-    const isAdj = (Math.abs(s.r-r) === 1 && s.c === c) || (Math.abs(s.c-c) === 1 && s.r === r);
+    const isAdj = (Math.abs(s.row - r) === 1 && s.col === c) || (Math.abs(s.col - c) === 1 && s.row === r);
     if (isAdj) {
-      swap(s.r, s.c, r, c);
+      swap(s.row, s.col, r, c);
       GameState.moves--;
       updateHUD();
     }
@@ -148,16 +152,59 @@ function swap(r1, c1, r2, c2) {
 }
 
 function checkMatches() {
-  // Simple match logic for brevity, you can expand this
-  const matched = [];
-  // ... matching logic ...
+  const matched = findMatches();
   if (matched.length === 0) {
     GameState.isAnimating = false;
     if (GameState.moves <= 0) loseLevel("OUT OF MOVES!");
     return;
   }
-  // Clear and drop logic...
-  if (GameState.tilesCleared >= GameState.target) winLevel();
+  matched.forEach(group => {
+    group.forEach(([r, c]) => {
+      if (GameState.grid[r][c] === 'L') GameState.grid[r][c] = ((r + c) % 5) + 1;
+      else { GameState.grid[r][c] = 0; GameState.tilesCleared++; }
+    });
+    GameState.score += (group.length * 10);
+  });
+  updateHUD();
+  dropAndFill();
+}
+
+function findMatches() {
+  const matched = [];
+  const grid = GameState.grid;
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 2; c++) {
+      const v = grid[r][c];
+      if (v && v !== 'L' && v === grid[r][c+1] && v === grid[r][c+2]) matched.push([[r, c], [r, c+1], [r, c+2]]);
+    }
+  }
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 2; r++) {
+      const v = grid[r][c];
+      if (v && v !== 'L' && v === grid[r+1][c] && v === grid[r+2][c]) matched.push([[r, c], [r+1, c], [r+2, c]]);
+    }
+  }
+  return matched;
+}
+
+function dropAndFill() {
+  for (let c = 0; c < 4; c++) {
+    let emptyRow = 3;
+    for (let r = 3; r >= 0; r--) {
+      if (GameState.grid[r][c] !== 0) {
+        const val = GameState.grid[r][c];
+        GameState.grid[r][c] = 0;
+        GameState.grid[emptyRow][c] = val;
+        emptyRow--;
+      }
+    }
+    for (let r = emptyRow; r >= 0; r--) GameState.grid[r][c] = Math.floor(Math.random() * 5) + 1;
+  }
+  renderGrid();
+  setTimeout(() => {
+    if (GameState.tilesCleared >= GameState.target) winLevel();
+    else checkMatches();
+  }, 300);
 }
 
 function startTimer() {
@@ -174,50 +221,37 @@ function winLevel() {
   clearInterval(GameState.timer);
   const key = `w${GameState.currentWorld}_l${GameState.currentLevel}`;
   GameState.completedLevels[key] = true;
-  saveProgress();
+  localStorage.setItem('bl_completed', JSON.stringify(GameState.completedLevels));
   showScreen('win');
 }
 
-function loseLevel(r) {
+function loseLevel(reason) {
   clearInterval(GameState.timer);
-  document.getElementById('lose-reason').textContent = r;
+  document.getElementById('lose-reason').textContent = reason;
   showScreen('lose');
 }
 
 // ========================
-// GLOBAL EVENT FIXER (The "Strong" Part)
+// BUTTON SETUP
 // ========================
-window.onload = () => {
-  loadProgress();
+window.addEventListener('DOMContentLoaded', () => {
   initSplash();
-
-  // HOME BUTTONS
-  document.getElementById('play-btn').onclick = () => {
-    showScreen('levelselect');
-    renderLevelGrid();
-  };
-
-  // WIN SCREEN BUTTONS
-  document.getElementById('next-level-btn').onclick = () => {
-    const nextIdx = GameState.currentLevel; // id 1 is index 0, so next is index currentLevel
-    if (nextIdx < levelsData.worlds[0].levels.length) {
-      startLevel(0, nextIdx);
-    } else {
-      showScreen('levelselect');
-    }
-  };
-
-  document.getElementById('win-home-btn').onclick = () => showScreen('home');
   
-  // LOSE SCREEN BUTTONS
-  document.getElementById('retry-btn').onclick = () => startLevel(GameState.currentWorld-1, GameState.currentLevel-1);
+  document.getElementById('play-btn').onclick = () => { showScreen('levelselect'); renderLevelGrid(); };
+  document.getElementById('next-level-btn').onclick = () => {
+    const nextIdx = GameState.currentLevel;
+    if (nextIdx < levelsData.worlds[0].levels.length) startLevel(0, nextIdx);
+    else showScreen('levelselect');
+  };
+  document.getElementById('win-home-btn').onclick = () => showScreen('home');
+  document.getElementById('retry-btn').onclick = () => startLevel(0, GameState.currentLevel - 1);
   document.getElementById('lose-home-btn').onclick = () => showScreen('home');
-
-  // BACK BUTTONS
-  document.querySelectorAll('.back-btn').forEach(b => {
-    b.onclick = () => { clearInterval(GameState.timer); showScreen('home'); };
+  document.getElementById('replay-btn').onclick = () => startLevel(0, GameState.currentLevel - 1);
+  
+  document.querySelectorAll('.back-btn').forEach(btn => {
+    btn.onclick = () => { clearInterval(GameState.timer); showScreen('home'); };
   });
-};
+});
 
 function renderLevelGrid() {
   const grid = document.getElementById('level-grid');
