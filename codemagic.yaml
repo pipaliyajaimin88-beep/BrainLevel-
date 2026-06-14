@@ -1,28 +1,25 @@
 workflows:
   android-workflow:
-    name: BrainLevel Bug Fix Build
+    name: BrainLevel Unbreakable Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: 20
       java: 17
     scripts:
-      - name: Bug Fix Setup
+      - name: Force Clean Build
         script: |
-          # 1. Clean up
-          rm -rf www android node_modules package-lock.json package.json capacitor.config.json
+          # 1. Start from Zero
+          rm -rf www android node_modules package.json capacitor.config.json
           
-          # 2. Create fresh configuration
+          # 2. Build Config
           echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
           
-          # 3. Install Capacitor tools
-          npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
-          
-          # 4. Find and organize game files (including the fix)
+          # 3. Setup Folders
           mkdir -p www
-          # First, use the fixed game-logic.js I just provided
-          # Then, find the other files from the zip
+          
+          # 4. Grab your ZIP and extract it
           ZIP_NAME=$(ls *.zip | head -n 1)
           if [ -n "$ZIP_NAME" ]; then
             unzip -o "$ZIP_NAME" -d temp_zip
@@ -32,13 +29,15 @@ workflows:
             fi
           fi
           
-          # IMPORTANT: Override with the fixed files from the root
-          cp index.html styles.css game-logic.js levels.json manifest.json www/ 2>/dev/null || true
+          # 5. OVERRIDE with the "Unbreakable" Brain
+          # This ensures the new code is used even if the ZIP has old files
+          cp game-logic.js www/game-logic.js
           
-          # 5. Build Android
+          # 6. Install and Sync
+          npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
           npx cap add android
           npx cap sync android
-      - name: Final APK Build
+      - name: Final Build
         script: |
           cd android
           chmod +x gradlew
