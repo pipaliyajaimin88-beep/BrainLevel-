@@ -1,39 +1,44 @@
 workflows:
   android-workflow:
-    name: BrainLevel Mobile Build
+    name: BrainLevel Bug Fix Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: 20
       java: 17
     scripts:
-      - name: Auto-Unzip and Setup
+      - name: Bug Fix Setup
         script: |
-          # 1. Find and Unzip your file automatically
-          ZIP_NAME=$(ls *.zip | head -n 1)
-          if [ -z "$ZIP_NAME" ]; then
-            echo "No zip found!"
-          else
-            unzip -o "$ZIP_NAME" -d my_game
-          fi
+          # 1. Clean up
+          rm -rf www android node_modules package-lock.json package.json capacitor.config.json
           
-          # 2. Find the game files inside the zip
-          mkdir -p www
-          REAL_PATH=$(find my_game -name "index.html" | head -n 1)
-          if [ -z "$REAL_PATH" ]; then
-            echo "index.html not found!"
-          else
-            # Move everything to the 'www' folder
-            cp -r $(dirname "$REAL_PATH")/* www/
-          fi
-          
-          # 3. Setup the App
+          # 2. Create fresh configuration
           echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
+          
+          # 3. Install Capacitor tools
           npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
-          npx cap add android || true
+          
+          # 4. Find and organize game files (including the fix)
+          mkdir -p www
+          # First, use the fixed game-logic.js I just provided
+          # Then, find the other files from the zip
+          ZIP_NAME=$(ls *.zip | head -n 1)
+          if [ -n "$ZIP_NAME" ]; then
+            unzip -o "$ZIP_NAME" -d temp_zip
+            REAL_PATH=$(find temp_zip -name "index.html" | head -n 1)
+            if [ -n "$REAL_PATH" ]; then
+              cp -r $(dirname "$REAL_PATH")/* www/
+            fi
+          fi
+          
+          # IMPORTANT: Override with the fixed files from the root
+          cp index.html styles.css game-logic.js levels.json manifest.json www/ 2>/dev/null || true
+          
+          # 5. Build Android
+          npx cap add android
           npx cap sync android
-      - name: Build APK
+      - name: Final APK Build
         script: |
           cd android
           chmod +x gradlew
