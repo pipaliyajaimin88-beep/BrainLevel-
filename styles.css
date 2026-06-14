@@ -1,0 +1,183 @@
+/* BrainLevel - Main Stylesheet (FIXED TOUCH VERSION) */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation; /* Improves touch responsiveness */
+}
+
+body {
+  background-color: #0f0c29;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  width: 100vw; /* Use viewport width */
+  height: 100vh; /* Use viewport height */
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+:root {
+  --bg-dark:       #0f0c29;
+  --bg-card:       #1a1040;
+  --purple-main:   #7c3aed;
+  --purple-light:  #8b5cf6;
+  --purple-glow:   #7c3aed88;
+  --golden:        #f59e0b;
+  --golden-glow:   #f59e0b88;
+  --red:           #ef4444;
+  --blue:          #3b82f6;
+  --green:         #10b981;
+  --yellow:        #f59e0b;
+  --purple-tile:   #8b5cf6;
+  --white:         #ffffff;
+  --gray:          #6b7280;
+  --gray-dark:     #1f2937;
+  --text-dim:      rgba(255,255,255,0.5);
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  background: var(--bg-dark);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.screen.active {
+  display: flex; /* Changed from block to flex for better centering */
+  flex-direction: column;
+  z-index: 10; /* Ensure active screen is on top */
+}
+
+/* Fix for overlapping screens */
+#splash.active { z-index: 100; }
+#pause-overlay { z-index: 200; }
+
+.btn {
+  display: block;
+  border: none;
+  border-radius: 25px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  text-align: center;
+  letter-spacing: 1px;
+  pointer-events: auto; /* Ensure buttons are clickable */
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-purple { background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; box-shadow: 0 4px 20px var(--purple-glow); }
+.btn-golden { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 4px 20px var(--golden-glow); }
+.btn-gray { background: var(--gray-dark); color: var(--text-dim); }
+.btn-red { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+
+.btn-large { width: 220px; height: 55px; font-size: 18px; margin: 8px auto; }
+.btn-medium { width: 160px; height: 44px; font-size: 14px; margin: 6px auto; }
+.btn-small { width: 120px; height: 36px; font-size: 12px; margin: 4px auto; }
+
+/* SPLASH SCREEN */
+#splash { align-items: center; justify-content: center; background: linear-gradient(160deg, #0f0c29, #302b63, #1a0a2e); }
+.splash-loader { width: 240px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.splash-loader-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--purple-main), var(--purple-light)); transition: width 0.1s linear; }
+
+/* HOME SCREEN */
+#home { align-items: center; background: linear-gradient(160deg, #0f0c29, #1a0a2e); }
+.home-top { width: 100%; display: flex; justify-content: flex-end; padding: 16px 20px 0; }
+.coin-display { background: rgba(245, 158, 11, 0.15); border: 1px solid var(--golden); border-radius: 20px; padding: 6px 14px; font-size: 14px; color: var(--golden); }
+.home-logo { text-align: center; margin: 30px 0 40px; }
+.home-buttons { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
+
+/* GAMEPLAY */
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  margin: 10px auto;
+  width: 320px;
+  height: 320px;
+}
+
+.tile {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.tile-1 { background: #ef4444; }
+.tile-2 { background: #3b82f6; }
+.tile-3 { background: #10b981; }
+.tile-4 { background: #f59e0b; }
+.tile-5 { background: #8b5cf6; }
+.tile-locked { background: #374151; color: #9ca3af; }
+.tile-bomb { background: #1f2937; border: 2px solid #ef4444; }
+.tile-rainbow { background: linear-gradient(45deg, #ef4444, #f59e0b, #10b981, #3b82f6, #8b5cf6); }
+
+.tile.selected { transform: scale(0.9); border: 3px solid white; box-shadow: 0 0 15px white; }
+
+/* PAUSE OVERLAY */
+.pause-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 12, 41, 0.9);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+/* SHOP ITEMS */
+.shop-items { padding: 10px; overflow-y: auto; flex: 1; }
+.shop-item {
+  background: rgba(255,255,255,0.05);
+  margin-bottom: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.buy-btn {
+  background: var(--golden);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* SETTINGS TOGGLE */
+.toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .4s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--purple-main); }
+input:checked + .slider:before { transform: translateX(20px); }
+
+/* Ensure all interactive elements have pointer-events */
+button, .tile, .world-tab, .level-btn, input, label {
+  pointer-events: auto !important;
+}
