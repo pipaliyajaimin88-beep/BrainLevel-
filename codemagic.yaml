@@ -1,35 +1,39 @@
 workflows:
   android-workflow:
-    name: BrainLevel Absolute Final Build
+    name: BrainLevel Mobile Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
       node: 20
       java: 17
     scripts:
-      - name: Force Environment Setup
+      - name: Auto-Unzip and Setup
         script: |
-          # 1. Kill any old files
-          rm -rf www android node_modules package-lock.json package.json capacitor.config.json
+          # 1. Find and Unzip your file automatically
+          ZIP_NAME=$(ls *.zip | head -n 1)
+          if [ -z "$ZIP_NAME" ]; then
+            echo "No zip found!"
+          else
+            unzip -o "$ZIP_NAME" -d my_game
+          fi
           
-          # 2. Create fresh config
+          # 2. Find the game files inside the zip
+          mkdir -p www
+          REAL_PATH=$(find my_game -name "index.html" | head -n 1)
+          if [ -z "$REAL_PATH" ]; then
+            echo "index.html not found!"
+          else
+            # Move everything to the 'www' folder
+            cp -r $(dirname "$REAL_PATH")/* www/
+          fi
+          
+          # 3. Setup the App
           echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
-          
-          # 3. Install Capacitor
           npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
-          
-          # 4. Force-move game files into 'www' (This fixes the White Screen)
-          mkdir -p www
-          cp index.html www/ 2>/dev/null || cp */index.html www/ 2>/dev/null || echo "<html><body><h1>Game Loading...</h1></body></html>" > www/index.html
-          cp styles.css www/ 2>/dev/null || cp */styles.css www/ 2>/dev/null || touch www/styles.css
-          cp game-logic.js www/ 2>/dev/null || cp */game-logic.js www/ 2>/dev/null || touch www/game-logic.js
-          cp levels.json www/ 2>/dev/null || cp */levels.json www/ 2>/dev/null || echo "{}" > www/levels.json
-          
-          # 5. Force-create Android project (This fixes the Sync/Copy error)
-          npx cap add android
+          npx cap add android || true
           npx cap sync android
-      - name: Final APK Build
+      - name: Build APK
         script: |
           cd android
           chmod +x gradlew
