@@ -370,4 +370,4 @@ function renderLevelGrid() {
     btn.onclick = () => startLevel(0, i);
     grid.appendChild(btn);
   });
-  }
+}
