@@ -1,4 +1,4 @@
-// BrainLevel - MASTER VERSION
+// BrainLevel - ULTIMATE FINAL MASTER VERSION
 // game-logic.js
 
 // ========================
@@ -29,8 +29,29 @@ const GameState = {
   coins: parseInt(localStorage.getItem('bl_coins') || '0'),
   completedLevels: JSON.parse(localStorage.getItem('bl_completed') || '{}'),
   levelStars: JSON.parse(localStorage.getItem('bl_stars') || '{}'),
+  settings: JSON.parse(localStorage.getItem('bl_settings') || '{"music":true,"sound":true,"vibration":true}'),
   grid: [], selectedTile: null, previousGrid: null, timer: null, isAnimating: false, isPaused: false
 };
+
+// ========================
+// AUDIO SYSTEM (Beeps)
+// ========================
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+function playSound(freq = 440, type = 'sine', duration = 0.1) {
+  if (!GameState.settings.sound) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
 
 // ========================
 // CORE FUNCTIONS
@@ -39,43 +60,29 @@ function saveProgress() {
   localStorage.setItem('bl_coins', GameState.coins);
   localStorage.setItem('bl_completed', JSON.stringify(GameState.completedLevels));
   localStorage.setItem('bl_stars', JSON.stringify(GameState.levelStars));
-}
-
-function loadProgress() {
-  GameState.coins = parseInt(localStorage.getItem('bl_coins') || '0');
-  GameState.completedLevels = JSON.parse(localStorage.getItem('bl_completed') || '{}');
-  GameState.levelStars = JSON.parse(localStorage.getItem('bl_stars') || '{}');
+  localStorage.setItem('bl_settings', JSON.stringify(GameState.settings));
 }
 
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => {
     s.classList.remove('active');
     s.style.display = 'none';
+    s.style.pointerEvents = 'none';
   });
   const target = document.getElementById(screenId);
   if (target) {
     target.classList.add('active');
     target.style.display = 'flex';
+    target.style.pointerEvents = 'auto';
   }
+  updateCoinDisplay();
 }
 
 // ========================
-// INITIALIZATION
+// GAMEPLAY LOGIC
 // ========================
-function initSplash() {
-  const fill = document.getElementById('splash-loader-fill');
-  let progress = 0;
-  const interval = setInterval(() => {
-    progress += 5;
-    if (fill) fill.style.width = progress + '%';
-    if (progress >= 100) {
-      clearInterval(interval);
-      setTimeout(() => showScreen('home'), 300);
-    }
-  }, 30);
-}
-
 function startLevel(worldIdx, levelIdx) {
+  playSound(600, 'square');
   const level = levelsData.worlds[worldIdx].levels[levelIdx];
   GameState.currentLevel = level.id;
   GameState.currentWorld = worldIdx + 1;
@@ -87,8 +94,6 @@ function startLevel(worldIdx, levelIdx) {
   GameState.grid = JSON.parse(JSON.stringify(level.grid));
   GameState.isPaused = false;
   GameState.isAnimating = false;
-  GameState.selectedTile = null;
-  GameState.previousGrid = null;
   showScreen('gameplay');
   initGameplay();
 }
@@ -116,8 +121,6 @@ function updateHUD() {
   }
   const fill = document.getElementById('target-fill');
   if (fill) fill.style.width = Math.min((GameState.tilesCleared / GameState.target) * 100, 100) + '%';
-  
-  updateCoinDisplay();
 }
 
 function renderGrid() {
@@ -137,7 +140,7 @@ function renderGrid() {
       if (GameState.selectedTile && GameState.selectedTile.row === r && GameState.selectedTile.col === c) {
         tile.classList.add('selected');
       }
-      tile.onclick = () => handleTileClick(r, c);
+      tile.onclick = () => { playSound(300); handleTileClick(r, c); };
       grid.appendChild(tile);
     }
   }
@@ -180,6 +183,7 @@ function checkMatches() {
     return;
   }
   
+  playSound(800, 'triangle', 0.2);
   matched.forEach(group => {
     group.forEach(([r, c]) => {
       if (GameState.grid[r][c] === 'L') { GameState.grid[r][c] = ((r + c) % 5) + 1; }
@@ -239,6 +243,7 @@ function startTimer() {
 
 function winLevel() {
   clearInterval(GameState.timer);
+  playSound(1000, 'sine', 0.5);
   const stars = GameState.moves >= 10 ? 3 : GameState.moves >= 5 ? 2 : 1;
   const key = `w${GameState.currentWorld}_l${GameState.currentLevel}`;
   GameState.completedLevels[key] = true;
@@ -255,6 +260,7 @@ function winLevel() {
 
 function loseLevel(reason) {
   clearInterval(GameState.timer);
+  playSound(200, 'sawtooth', 0.5);
   document.getElementById('lose-reason').textContent = reason;
   document.getElementById('lose-score').textContent = 'Score: ' + GameState.score;
   showScreen('lose');
@@ -266,13 +272,53 @@ function updateCoinDisplay() {
 }
 
 // ========================
-// BUTTON LOGIC
+// SHOP & SETTINGS LOGIC
+// ========================
+window.buyItem = (type, price, item) => {
+  if (GameState.coins >= price) {
+    GameState.coins -= price;
+    if (item === 'hint') GameState.hintsLeft += 5;
+    if (item === 'undo') GameState.undosLeft += 5;
+    if (item === 'time') GameState.time += 30;
+    playSound(1200, 'sine', 0.2);
+    saveProgress();
+    updateHUD();
+    updateCoinDisplay();
+    alert("Purchase Successful!");
+  } else {
+    alert("Not enough coins!");
+  }
+};
+
+function setupSettings() {
+  const toggles = document.querySelectorAll('#settings input[type="checkbox"]');
+  const keys = ['music', 'sound', 'vibration', 'notifications'];
+  toggles.forEach((t, i) => {
+    t.checked = GameState.settings[keys[i]];
+    t.onchange = () => {
+      GameState.settings[keys[i]] = t.checked;
+      saveProgress();
+      playSound(500);
+    };
+  });
+}
+
+// ========================
+// BUTTON BINDING
 // ========================
 window.addEventListener('load', () => {
   loadProgress();
-  initSplash();
+  setupSettings();
   
-  const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  const fill = document.getElementById('splash-loader-fill');
+  let p = 0;
+  const inv = setInterval(() => {
+    p += 10;
+    if (fill) fill.style.width = p + '%';
+    if (p >= 100) { clearInterval(inv); showScreen('home'); }
+  }, 50);
+
+  const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = () => { playSound(440); fn(); }; };
   
   bind('play-btn', () => { showScreen('levelselect'); renderLevelGrid(); });
   bind('leaderboard-btn', () => showScreen('leaderboard'));
@@ -286,7 +332,7 @@ window.addEventListener('load', () => {
   bind('undo-btn', () => { if (GameState.undosLeft > 0 && GameState.previousGrid) { GameState.grid = JSON.parse(JSON.stringify(GameState.previousGrid)); GameState.undosLeft--; updateHUD(); renderGrid(); } });
   
   bind('next-level-btn', () => {
-    const nextIdx = GameState.currentLevel; // index of next level
+    const nextIdx = GameState.currentLevel;
     if (nextIdx < levelsData.worlds[0].levels.length) startLevel(0, nextIdx);
     else { showScreen('levelselect'); renderLevelGrid(); }
   });
@@ -296,8 +342,18 @@ window.addEventListener('load', () => {
   bind('win-home-btn', () => showScreen('home'));
   bind('lose-home-btn', () => showScreen('home'));
   
+  // Watch Ad Button Fix
+  const adBtn = document.querySelector('#lose .btn-golden');
+  if (adBtn) adBtn.onclick = () => {
+    alert("Ad watched! +5 Moves added.");
+    GameState.moves += 5;
+    updateHUD();
+    showScreen('gameplay');
+    startTimer();
+  };
+
   document.querySelectorAll('.back-btn').forEach(btn => {
-    btn.onclick = () => { clearInterval(GameState.timer); showScreen('home'); };
+    btn.onclick = () => { playSound(400); clearInterval(GameState.timer); showScreen('home'); };
   });
 });
 
@@ -314,4 +370,4 @@ function renderLevelGrid() {
     btn.onclick = () => startLevel(0, i);
     grid.appendChild(btn);
   });
-}
+  }
