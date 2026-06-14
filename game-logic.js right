@@ -1,0 +1,84 @@
+/**
+ * Core Game Logic Module
+ * Implements pure mathematical functions to maintain a deterministic game state.
+ */
+
+export const INITIAL_SCORE = 0;
+// Assuming a standard logic puzzle (e.g., Sudoku, Tic-Tac-Toe, or custom grid game)
+export const BOARD_SIZE = 9; 
+
+// Generates a strictly structured, multi-dimensional initial board to prevent undefined evaluations
+export const generateInitialBoardState = () => {
+  return Array.from({ length: BOARD_SIZE }, () => 
+    Array.from({ length: BOARD_SIZE }, () => ({
+      value: null, // Null explicitly denotes an incomplete cell
+      isFixed: false, // Determines if the cell was part of the initial puzzle generation
+      hasError: false // Tracks user input validity
+    }))
+  );
+};
+
+// Rigorously validates the board to prevent premature routing to the win screen
+export const evaluateWinCondition = (boardState) => {
+  // Guard clause against undefined, null, or prematurely evaluated states
+  if (!boardState ||!Array.isArray(boardState) || boardState.length === 0) {
+    return false;
+  }
+  
+  let isCompletelyFilled = true;
+  let isMathematicallyCorrect = true;
+
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      const cell = boardState[row][col];
+      
+      // If any singular cell evaluates to null, the game is explicitly NOT won
+      if (cell.value === null) {
+        isCompletelyFilled = false;
+        // Optimization: immediately break out of loop if an empty cell is found
+        break; 
+      }
+      
+      // Evaluate correctness. If a single error exists, the board is invalid.
+      if (cell.hasError) {
+        isMathematicallyCorrect = false;
+      }
+    }
+    if (!isCompletelyFilled) break;
+  }
+
+  // The victory state transition is only permitted if the board is completely saturated AND verified correct
+  return isCompletelyFilled && isMathematicallyCorrect;
+};
+
+// Implements the Undo logic architecture utilizing an immutable stack
+export const processUndoAction = (historyStack, currentBoardState) => {
+  if (!historyStack || historyStack.length === 0) {
+    return { newBoard: currentBoardState, newStack: historyStack };
+  }
+  // Retrieve the most recent historical state
+  const previousState = historyStack;
+  // Pop the stack immutably
+  const newStack = historyStack.slice(0, -1);
+  
+  return { newBoard: previousState, newStack };
+};
+
+// Implements Hint logic processing
+export const processHintAction = (currentBoardState, solutionMatrix) => {
+  // Deep clone the board to prevent reference mutation
+  let updatedBoard = JSON.parse(JSON.stringify(currentBoardState));
+  
+  // Implementation of hint application: Find first empty cell and resolve it
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      if (updatedBoard[row][col].value === null) {
+        // Assuming solutionMatrix is passed correctly from a generation algorithm
+        updatedBoard[row][col].value = solutionMatrix? solutionMatrix[row][col] : 1; 
+        updatedBoard[row][col].isFixed = true; // Fix the hint so it cannot be altered
+        return updatedBoard;
+      }
+    }
+  }
+  return updatedBoard;
+};
