@@ -1,6 +1,6 @@
 workflows:
   android-workflow:
-    name: BrainLevel Unbreakable Build
+    name: BrainLevel Absolute Final Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
@@ -9,17 +9,17 @@ workflows:
     scripts:
       - name: Force Clean Build
         script: |
-          # 1. Start from Zero
+          # 1. Clean up
           rm -rf www android node_modules package.json capacitor.config.json
           
-          # 2. Build Config
+          # 2. Create fresh config
           echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
           echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
           
           # 3. Setup Folders
           mkdir -p www
           
-          # 4. Grab your ZIP and extract it
+          # 4. Extract your ZIP
           ZIP_NAME=$(ls *.zip | head -n 1)
           if [ -n "$ZIP_NAME" ]; then
             unzip -o "$ZIP_NAME" -d temp_zip
@@ -29,9 +29,9 @@ workflows:
             fi
           fi
           
-          # 5. OVERRIDE with the "Unbreakable" Brain
-          # This ensures the new code is used even if the ZIP has old files
+          # 5. OVERRIDE with the FIXED Brain and FIXED Styles
           cp game-logic.js www/game-logic.js
+          cp styles.css www/styles.css
           
           # 6. Install and Sync
           npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
