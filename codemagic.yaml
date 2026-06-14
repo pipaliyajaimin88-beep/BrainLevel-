@@ -1,46 +1,60 @@
 workflows:
-  android-workflow:
-    name: BrainLevel Absolute Final Build
-    instance_type: mac_mini_m1
-    max_build_duration: 60
+  android-release-workflow:
+    name: Android Production Release Compilation
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    
     environment:
-      node: 20
-      java: 17
+      groups:
+        - keystore_credentials_group
+      node: latest
+      java: 17 
+    
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+
     scripts:
-      - name: Force Clean Build
+      - name: Resolve and Install JavaScript Dependencies
         script: |
-          # 1. Clean up
-          rm -rf www android node_modules package.json capacitor.config.json
+          npm install --legacy-peer-deps
           
-          # 2. Create fresh config
-          echo '{"name":"brainlevel","version":"1.0.0"}' > package.json
-          echo '{"appId":"com.brainlevel.game","appName":"BrainLevel","webDir":"www"}' > capacitor.config.json
+      - name: Execute Expo Application Services (EAS) Prebuild
+        script: |
+          npx expo prebuild --platform android --clean
           
-          # 3. Setup Folders
-          mkdir -p www
+      - name: Synchronize local.properties with Virtual Machine Android SDK
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
           
-          # 4. Extract your ZIP
-          ZIP_NAME=$(ls *.zip | head -n 1)
-          if [ -n "$ZIP_NAME" ]; then
-            unzip -o "$ZIP_NAME" -d temp_zip
-            REAL_PATH=$(find temp_zip -name "index.html" | head -n 1)
-            if [ -n "$REAL_PATH" ]; then
-              cp -r $(dirname "$REAL_PATH")/* www/
-            fi
-          fi
+      - name: Decode and Apply Cryptographic Keystore
+        script: |
+          echo $KEYSTORE_BASE64 | base64 --decode > $CM_BUILD_DIR/android/app/keystore.jks
+          cat >> "$CM_BUILD_DIR/android/key.properties" <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=../keystore.jks
+          EOF
           
-          # 5. OVERRIDE with the FIXED Brain and FIXED Styles
-          cp game-logic.js www/game-logic.js
-          cp styles.css www/styles.css
-          
-          # 6. Install and Sync
-          npm install @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
-          npx cap add android
-          npx cap sync android
-      - name: Final Build
+      - name: Execute Gradle Daemon to Assemble Production APK
         script: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+         ./gradlew assembleRelease
+
     artifacts:
-      - android/app/build/outputs/apk/**/*.apk
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/mapping.txt 
+
+    publishing:
+      email:
+        recipients:
+          - developer@yourcompany.com
+        notify:
+          success: true
+          failure: true
